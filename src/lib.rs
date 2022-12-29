@@ -7,49 +7,59 @@ pub fn median(mut arr1: Vec<i32>, mut arr2: Vec<i32>) -> f64 {
         std::mem::swap(&mut arr1, &mut arr2);
     }
 
-    let get_lohi = |index| {
-        let arr2_lo = if index > 0 { arr2.get(index - 1) } else { None };
-        let arr2_hi = arr2.get(index);
+    // get all values before and after a possible split assuming we take `num` values from arr2
+    let lohi = |num| {
+        let arr2_lo = if num > 0 { arr2.get(num - 1) } else { None };
+        let arr2_hi = arr2.get(num);
 
-        let arr1_lo = if half >= index {
-            arr1.get(half - index)
+        let arr1_lo = if half >= num {
+            arr1.get(half - num)
         } else {
             None
         };
-        let arr1_hi = arr1.get(1 + half - index);
+        let arr1_hi = arr1.get(1 + half - num);
 
-        let lo = [arr1_lo, arr2_lo]
-            .into_iter()
-            .flatten()
-            .max()
-            .unwrap()
-            .clone();
-        let hi = [arr1_hi, arr2_hi]
-            .into_iter()
-            .flatten()
-            .min()
-            .unwrap_or(&lo)
-            .clone();
-
-        (lo, hi)
+        (arr1_lo, arr1_hi, arr2_lo, arr2_hi)
     };
 
     let eval_index = |index| {
-        let (lo, hi) = get_lohi(index);
-        lo <= hi
+        use core::cmp::Ordering::*;
+
+        let (arr1_lo, arr1_hi, arr2_lo, arr2_hi) = lohi(index);
+        if let (Some(a), Some(b)) = (arr1_lo, arr2_hi) {
+            if a > b {
+                return Less;
+            }
+        }
+        if let (Some(a), Some(b)) = (arr2_lo, arr1_hi) {
+            if a > b {
+                return Greater;
+            }
+        }
+
+        return Equal;
     };
 
     // ultimately, we want to find out how many elements of arr2 should be before the median value
     // for each element we move right in arr2, we move one element left in arr1, to keep the number
     // of elements before the median value constant
-    let center = dbg!((0..=arr2.len()).map(eval_index).collect::<Vec<_>>())
-        .into_iter()
-        .enumerate()
-        .find(|(_, val)| *val)
-        .unwrap()
-        .0;
+    let center = binary_search_by_index(&arr2, eval_index);
 
-    let (lo, hi) = get_lohi(center);
+    // determine the values that are adjacent/equal to the median
+    let (arr1_lo, arr1_hi, arr2_lo, arr2_hi) = lohi(center);
+    let lo = [arr1_lo, arr2_lo]
+        .into_iter()
+        .flatten()
+        .max()
+        .unwrap()
+        .clone();
+    let hi = [arr1_hi, arr2_hi]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or(&lo) // in case arr2 is empty
+        .clone();
+
     if total_len % 2 == 1 {
         lo as f64
     } else {
@@ -89,11 +99,6 @@ where
     let mut right = size;
     while left < right {
         let mid = left + size / 2;
-
-        // SAFETY: the while condition means `size` is strictly positive, so
-        // `size/2 < size`.  Thus `left + size/2 < left + size`, which
-        // coupled with the `left + size <= slice.len()` invariant means
-        // we have `left + size/2 < slice.len()`, and this is in-bounds.
         let cmp = f(mid);
 
         // The reason why we use if/else control flow rather than match

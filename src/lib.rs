@@ -1,3 +1,5 @@
+use core::cmp::Ordering::*;
+
 pub fn median(mut arr1: Vec<i32>, mut arr2: Vec<i32>) -> f64 {
     let total_len = arr1.len() + arr2.len();
     let half = (total_len - 1) / 2;
@@ -23,21 +25,14 @@ pub fn median(mut arr1: Vec<i32>, mut arr2: Vec<i32>) -> f64 {
     };
 
     let eval_index = |index| {
-        use core::cmp::Ordering::*;
-
         let (arr1_lo, arr1_hi, arr2_lo, arr2_hi) = lohi(index);
-        if let (Some(a), Some(b)) = (arr1_lo, arr2_hi) {
-            if a > b {
-                return Less;
-            }
+        if arr1_lo > arr2_hi {
+            Less
+        } else if arr2_lo > arr1_hi {
+            Greater
+        } else {
+            Equal
         }
-        if let (Some(a), Some(b)) = (arr2_lo, arr1_hi) {
-            if a > b {
-                return Greater;
-            }
-        }
-
-        return Equal;
     };
 
     // ultimately, we want to find out how many elements of arr2 should be before the median value
@@ -47,13 +42,8 @@ pub fn median(mut arr1: Vec<i32>, mut arr2: Vec<i32>) -> f64 {
 
     // determine the values that are adjacent/equal to the median
     let (arr1_lo, arr1_hi, arr2_lo, arr2_hi) = lohi(center);
-    let lo = [arr1_lo, arr2_lo]
-        .into_iter()
-        .flatten()
-        .max()
-        .unwrap()
-        .clone();
-    let hi = [arr1_hi, arr2_hi]
+    let lo = arr1_lo.max(arr2_lo).unwrap().clone();
+    let hi = [arr2_hi, arr1_hi]
         .into_iter()
         .flatten()
         .min()
@@ -88,8 +78,6 @@ pub fn binary_search_by_index<'a, T, F>(slice: &'a [T], mut f: F) -> usize
 where
     F: FnMut(usize) -> core::cmp::Ordering,
 {
-    use core::cmp::Ordering::*;
-
     // INVARIANTS:
     // - 0 <= left <= left + size = right <= slice.len()
     // - f returns Less for everything in slice[..left]
